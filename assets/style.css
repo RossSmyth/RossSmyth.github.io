@@ -80,3 +80,25 @@ body a {
 .skills li:before {
 	content: '\00a0\2022\00a0\00a0';
 }
+
+.collapsible {
+    background-color: rgba(238, 238, 238, 0.644);
+    cursor: pointer;
+    padding: 18px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 15px;
+  }
+
+  .active, .collapsible:hover {
+    background-color: rgb(204, 204, 204);
+  }
+
+  .collapsible-content {
+    padding: 0 18px;
+    display: none;
+    overflow: hidden;
+    background-color: #f1f1f115;
+  }

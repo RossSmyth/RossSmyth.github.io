@@ -39,10 +39,106 @@
         </div>
         <div class='content-container'>
             <h1>Portfolio</h1>
-            <p>
-            Whoops, nothing here yet.
-            </p>
+            <button type="button" class="collapsible">Spacecraft Sensor Uncertainty</button>
+            <div class="collapsible-content">
+                <p>To check out this project, mess around with it, or potentially use it, go <a href="https://github.com/RossSmyth/Aerospace-Enterprise/blob/master/Spacecraft%20Momentum%20Budget.xlsx">here on my GitHub.</a></p>
+                <h3>Overview</h3>
+                <p>&emsp;As a attitude determination and control systems engineer, I have made several tools for making it easier to verify requirments.
+                    One of these is an Excel sheet for analyzing the uncertainty of sensors on the spacecraft. Specifically the attitude determination sensors.
+                    Built-in to this tool is uncertainty propogation of sensors that have angular uncertainty, or can be calculated to have angular uncertainty.
+                    Specifically the ones I created this for are the sensors on the <a href="http://aerospace.mtu.edu/spacecraft/#auris">Auris spacecraft</a>: star trackers, fine sun sensors, and horizon sensors.
+                    As long as the uncertainty expressed is one that is angular uncertainty, there is no configuration needed to add a sensor.
+                </p>
+                <h3>Math</h2>
+                <p>
+                    This calculation is done with several assumptions:
+                    <ul>
+                        <li>All sensors measurements are independent</li>
+                        <li>All axes measured by the sensors are independent from each other</li>
+                        <li>Uncertainty is normally distributed</li>
+                        <li>There is no bias, or the bias is minimal in the sensors</li>
+                    </ul>
+                    For each axis measured by each sensor, a probability density function (PDF) is associated. This function is a <a href="https://en.wikipedia.org/wiki/Gaussian_function">Gaussian</a>
+                    that has an average of zero, and a standard deviation equal to the uncertainty of the axis. This PDF has the form of:
+                    </p>
+                    <math display="block"  xmlns="http://www.w3.org/1998/Math/MathML">
+                        <mi>g</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo>
+                        <mo>=</mo>
+                        <mfrac>
+                            <mn>1</mn>
+                            <mrow><mi>σ</mi><msqrt><mn>2π</mn></msqrt></mrow>
+                        </mfrac>
+                        <mi mathvariant="italic">exp</mi>
+                            <mo>(</mo>
+                                <mo>-</mo>
+                                <mfrac>
+                                    <msup><mi>x</mi><mn>2</mn></msup>
+                                    <mrow><mi>2</mi><msup><mi>σ</mi><mn>2</mn></msup></mrow>
+                                </mfrac>
+                            <mo>)</mo>
+                    </math>
+                    <p>
+                        Where <math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi></math> is an angle away from the "true" value of the measurement, and 
+                        <math  xmlns="http://www.w3.org/1998/Math/MathML">
+                            <mi>g</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo>
+                        </math> is the relative likelyhood of that value being the output from the sensor. After these are associated with each sensors' axes, 
+                        all of the PDFs along each axis of the spacecraft are multiplied together. This results in a total uncertainty along each axis, as when a 
+                        Gaussian is multipled by a Gaussian, another Gaussian is produced. The produced Gaussian has an average of zero like the others 
+                        but the standard deivation will be less than any of the others. This follows from the idea of sensor fusion, 
+                        and if the sensor data is fused together properly, the overall measurement will have less uncerainty than any single sensor.
+                    </p>
+                    <math display="block"  xmlns="http://www.w3.org/1998/Math/MathML">
+                        <msub><mi>g</mi><mn>tot</mn></msub><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo>
+                        <mo>=</mo>
+                        <munderover><mo>∏</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+                        <msub><mi>g</mi><mn>i</mn></msub><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo>          
+                    </math>
+                    <p>As it turns out, there is an easy way to calculate this. Rather than multiplying each PDF together and simplifying it, <a href="http://129.173.120.78/~kreplak/wordpress/wp-content/uploads/2010/12/gaussians_convolutions_lecture3.pdf">just summing the reciprocal of the variances will give the same result</a>.
+                    </p>
+                    <math display="block"  xmlns="http://www.w3.org/1998/Math/MathML">
+                        <mfrac>
+                            <mi>1</mi>
+                            <msubsup><mi>σ</mi><mn>tot</mn><mn>2</mn>                           
+                        </mfrac>
+                        <mo>=</mo>
+                        <munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+                        <mfrac>
+                            <mi>1</mi>
+                            <msubsup><mi>σ</mi><mn>i</mn><mn>2</mn>                           
+                        </mfrac>
+                    </math>
+                    <h3>Implementation</h3>
+                    <p>&emsp;This was implemented in an Excel file that takes in the sensor properties and the system requirments. The output is the total uncertainty along each axis, and whether this meets the requirment or not based upon color.
+                       The real implementation of these statistics is done in the units of arseconds, as those are easier to compare the small angles that are being dealt with. There is also a column for inputting the confidence interval in the uncertainty.
+                       The confidence interval is very important, as without it there is no way to tell how confident the manufacturer is in their measurements. A confidence interval of 1 is equivalent to the standard deviation. 
+                       To calculate the standard deviation from an uncertainty with a confidence interval of 3, just divide the value by three.
+                    </p>
+                    <p>Another fun feature is the ability to freely change the displyed units on the dashboard page between many different units of angle.</p>
+                    <img src="./assets/sensor_uncertainty_dashboard.png" alt="Auris Spacecraft ADC System Sensor Uncertainty Dashboard" width=100%>
+                    <p style="text-align: center;">Auris ADC System Sensor Uncertainty Dashboard</p>
+                    <img src="./assets/sensor_uncertainty_input.png" alt="Auris Spacecraft ADC System Sensor Uncertainty Inputs" width=100%>
+                    <p style="text-align: center;">Auris ADC System Sensor Uncertainty Inputs</p>
+            </div>
+            
         </div>
+
+        <script>
+            var coll = document.getElementsByClassName("collapsible");
+            var i;
+    
+            for (i = 0; i < coll.length; i++) {
+            coll[i].addEventListener("click", function() {
+                this.classList.toggle("active");
+                var content = this.nextElementSibling;
+                if (content.style.display === "block") {
+                content.style.display = "none";
+                } else {
+                content.style.display = "block";
+                }
+            });
+            } 
+        </script>
+
         <footer id="footer">
             <div class='content-container footer'>
             <small style="float:left">© 2021<script>var d = new Date(); d=d.getFullYear(); if (d === 2021){} else{document.write("-" + d);}</script> Ross Smyth</small>
