@@ -113,15 +113,15 @@ def step_detect(data: np.ndarray) -> np.ndarray:
                 </p>
                 <pre><div class="language-tag">Python</div><div class="code-container"><code>
 >>> from timeit import timeit 
->>> test_data = np.random.rand(10000)
->>> timeit(lambda: step_detect(test_data), number=10000) / 10000
-0.01829625608</code></div></pre>
+>>> test_data = np.random.rand(15_000_000)
+>>> timeit(lambda: step_detect(test_data), number=15_000_000) / 15_000_000
+# This is me a year later, I don't want to rerun these but it was around 25 minutes</code></div></pre>
                 <p>and with Intel MKL:</p>
                 <pre><div class="language-tag">Python</div><div class="code-container"><code>
 >>> from timeit import timeit
->>> test_data = np.random.rand(10000)
->>> timeit(lambda: step_detect(test_data), number=10000) / 10000
-0.01829625608</code></div></pre>
+>>> test_data = np.random.rand(15_000_000)
+>>> timeit(lambda: step_detect(test_data), number=15_000_000) / 15_000_000
+# This is me a year later, I don't want to rerun these but it was around 120 seconds</code></div></pre>
                 <p>
                     While some people may dismiss this as a microbenchmark that is not indicative of real-world performance, 
                     this actually is a real world situation. These small numbers do scale to larger input signals sadly.
@@ -136,7 +136,42 @@ def step_detect(data: np.ndarray) -> np.ndarray:
                     to imagine discrete convolution as a "sliding dot product", where the input signal slides along the convolution
                     kernel and at each index the output vector is built from the dot product of the signals.
                 </p>
-            </div>
+				<pre><div class="language-tag">Note</div>
+	All below was written a year later cause I forgot about this.
+				</pre>
+				<p>
+                    &emsp;I sort of forgot about this blog article, and all of the above was written about 1.5 years ago. But anyways with
+					the above knowledge, you can take the unoptimized implementation, that with the input I was using it with (noisy oscilliscope signals)
+					you can take the runtime from about 2 minutes to somewhere in the tens of milliseconds.
+			    </p>
+				<pre><div class="language-tag">C</div><div class="code-container"><code>
+int fast_conv(const size_t len, const float array[], float output[])
+{
+  if (!array || !output) {
+    return -1;
+  }
+  size_t i = 0;
+  float accum = 0.0f;
+
+// Calculate the convolution
+#pragma omp simd reduction(+ : accum)
+  for (i = 0; i != len; i++) {
+    accum += array[i];
+  }
+
+  for (i = 0; i != len; i++) {
+    output[i] = accum;
+    accum -= 2.0f * array[len - i - 1];
+  }
+  output[i] = accum;
+
+  return 0;
+}</code></div></pre>
+			<p>
+				I didn't want to make a real Python module at the time, so I built a module around it using ctype and NumPy ctypes.
+				In the end I sped up a program that took a couple days to run to less than an hour.
+            </p>
+			</div>
         </div>
         <script>
             var coll = document.getElementsByClassName("collapsible");
