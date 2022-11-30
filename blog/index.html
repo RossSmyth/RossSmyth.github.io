@@ -167,6 +167,21 @@ int fast_conv(const size_t len, const float array[], float output[])
 
   return 0;
 }</code></div></pre>
+<p> And the Rust equivalent </>
+<pre><div class="language-tag">Rust</div><div class="code-container"><code>
+pub fn fast_conv(input: &[f32]) -> Vec<f32> {
+    let mut buffer = Vec::with_capacity(input.len() + 1);
+
+    let mut accum = input.iter().sum();
+
+    for x in input.iter().rev() {
+        buffer.push(accum);
+        accum -= 2.0 * x;
+    }
+    buffer.push(accum);
+    
+    buffer
+}</code></div></pre>
 			<p>
 				I didn't want to make a real Python module at the time, so I built a module around it using ctype and NumPy ctypes.
 				In the end I sped up a program that took a couple days to run to less than an hour.
