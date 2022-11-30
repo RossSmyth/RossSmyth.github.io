@@ -31,7 +31,7 @@
                         </li><li>
                         <a href="/portfolio">🔧 Portfolio</a>
                         </li><li>
-                        <a href="/resume">🖺 Resume</a>
+                        <a href="https://github.com/RossSmyth/resume/releases/tag/Latest">🖺 Resume</a>
                         </li>
                     </ul>
                 </div>
@@ -39,13 +39,124 @@
         </div>
         <div class='content-container'>
             <h1>Blogs</h1>
-            <p>
-            Whoops, nothing here yet.
-            </p>
+            <button type="button" class="collapsible">Step-detection via Convolution</button>
+            <div class="collapsible-content">
+                <p>tl;dr: Step dection is actually a special case of convolution that can be made really fast. See the <a>Godbolt example</a></p>
+                <h3>Overview</h3>
+                <p>&emsp;Step detection in one-dimensional signals is an interesting problem. In the ideal case you can just look when the difference
+                    between two samples is greater than 0 and done like dinner. But reality isn't so simple sadly, as almost all signals in real life are
+                    noisy. One way this is often done is via convolution. I encountered this <a href="https://stackoverflow.com/a/48001937">Stack Overflow</a> 
+                    answer that introduced me to that. I have previously used convolution for filtering in my digital signal processing class, but I had not 
+                    considered it for other use cases.</p>
+                <p>&emsp;But it turns out this has a downside. Convolution is extremly slow. It's complexity is
+                    <math><mi>&Oscr;</mi><mo stretchy="false">(</mo><mi>n</mi><mi>m</mi><mo stretchy="false">)</mo></math>, where <math><mi>n</mi></math> and
+                    <math><mi>m</mi></math> are the lengths of the input signals <math><mi>g</mi><mo>(</mo><mi>x</mi><mo>)</mo></math> where 
+                    <math><mi>x</mi><mo>=</mo><mo>[</mo>0<mo>,</mo><mi>n</mi><mo>]</mo></math> and
+                    <math><mi>h</mi><mo>(</mo><mi>x</mi><mo>)</mo></math> where <math><mi>x</mi><mo>=</mo><mo>[</mo>0<mo>,</mo><mi>m</mi><mo>]</mo></math>. 
+                    For step detection <math><mi>m</mi><mo>=</mo><mi>2n</mi></math>, and
+                    <math>
+                        <mi>h</mi><mrow><mo>(</mo><mi>x</mi><mo>)</mo></mrow><mo>=</mo>
+                        <mrow><mo>{</mo>
+                            <mtable>
+                                <mtr>
+                                    <mtd><mn>1</mn></mtd>
+                                    <mtd>
+                                        <mrow>
+                                            <mrow>
+                                                <mstyle displaystyle="false" scriptlevel="0">
+                                                    <mtext>if&#xA0;</mtext>
+                                                </mstyle>
+                                            </mrow>
+                                            <mi>x</mi><mo>=</mo><mo>[</mo><mn>0</mn><mo>,</mo><mi>n</mi><mo>]</mo>
+                                        </mrow>
+                                    </mtd>
+                                </mtr>
+                                <mtr>
+                                    <mtd><mn>-1</mn></mtd>
+                                    <mtd>
+                                        <mrow>
+                                            <mrow>
+                                                <mstyle displaystyle="false" scriptlevel="0">
+                                                    <mtext>if&#xA0;</mtext>
+                                                </mstyle>
+                                            </mrow>
+                                            <mi>x</mi><mo>=</mo><mo>(</mo><mi>n</mi><mo>,</mo><mn>2</mn><mi>n</mi><mo>]</mo>
+                                        </mrow>
+                                    </mtd>
+                                </mtr>
+                            </mtable>
+                        </mrow>
+                        <mo fence="true" stretchy="true" symmetric="true"></mo>
+                    </math>. This makes it very convinent to find where steps occur as the output signal is a sawtooth signal, 
+                    and where the second-derivitive is non-zero is where steps occur. An image from the Stack Overflow post 
+                    shows this clearly.
+                </p>
+                <img style="display: block; margin-left: auto; margin-right: auto;" src="assets/step_detect.png" alt="Step detection of signal. Blue signal is input. Orange signal is output from convolution. Vertical line is where step occurs.">
+                <center><small>Step detection of signal. Blue signal is input. Orange signal is output from convolution. Vertical line is where step occurs.</small></center>
+                <p>&emsp;For the general case of convolution this is a <math><mi>&Oscr;</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></math> calculation which sucks for large signals, for example from an oscilliscope.
+                    It is also unfortunate that the accelerator packs for Python's Numpy pacakge vary widely in their convolution speeds. Numpy accelerated with 
+                    OpenBLAS is several hundred times slower than Numpy built with Intel's MKL, which is tragic as I would prefer the open-source alternative.
+                    Shown below is a function that will calculate the convolved signal.
+                </p>
+                <pre><div class="language-tag">Python</div><div class="code-container"><code>
+import numpy as np
+
+def step_detect(data: np.ndarray) -> np.ndarray:
+    """Convolves input 1-D signal with step detection kernel
+    """
+    preprocess = data - np.average(data)
+    step = np.hstack((np.ones(data.size), -1 * np.ones(data.size)))
+    return np.convolve(preprocess, step, mode="valid")
+</code></div></pre>
+                <p>
+                    Then timing it with OpenBLAS:
+                </p>
+                <pre><div class="language-tag">Python</div><div class="code-container"><code>
+>>> from timeit import timeit 
+>>> test_data = np.random.rand(10000)
+>>> timeit(lambda: step_detect(test_data), number=10000) / 10000
+0.01829625608</code></div></pre>
+                <p>and with Intel MKL:</p>
+                <pre><div class="language-tag">Python</div><div class="code-container"><code>
+>>> from timeit import timeit
+>>> test_data = np.random.rand(10000)
+>>> timeit(lambda: step_detect(test_data), number=10000) / 10000
+0.01829625608</code></div></pre>
+                <p>
+                    While some people may dismiss this as a microbenchmark that is not indicative of real-world performance, 
+                    this actually is a real world situation. These small numbers do scale to larger input signals sadly.
+                    But what if there was a way to make it much <i>much</i> faster?
+                </p> 
+                <h3>How to make it much much faster</h3>
+                <p>
+                    &emsp;As the title spoiled it can be made to be extremly fast. While I was sitting in the queue to
+                    Amazon Game Studio's New World on release day I had plenty of time to not play the video game. During that
+                    time I though about convolution, and this thought process brought me to realizing that all that step detection
+                    is doing is summing the signal up to a certain index, then subtracting the rest of the signal. It may be easier
+                    to imagine discrete convolution as a "sliding dot product", where the input signal slides along the convolution
+                    kernel and at each index the output vector is built from the dot product of the signals.
+                </p>
+            </div>
         </div>
+        <script>
+            var coll = document.getElementsByClassName("collapsible");
+            var i;
+    
+            for (i = 0; i < coll.length; i++) {
+            coll[i].addEventListener("click", function() {
+                this.classList.toggle("active");
+                var content = this.nextElementSibling;
+                if (content.style.display === "block") {
+                content.style.display = "none";
+                } else {
+                content.style.display = "block";
+                }
+            });
+            } 
+        </script>
         <footer id="footer">
             <div class='content-container footer'>
-            <small style="float:left">© 2021<script>var d = new Date(); d=d.getFullYear(); if (d === 2021){} else{document.write("-" + d);}</script> Ross Smyth</small>
+            <small style="float:left">&copy; 2021<script>var d = new Date(); d=d.getFullYear(); if (d === 2021){} else{document.write("-" + d);}</script> Ross Smyth</small>
             <small style="float:right">Contact: 
                 <address><a href="mailto:crs2017@gmail.com">Email</a></address>
             </small>
